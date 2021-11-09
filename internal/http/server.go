@@ -12,7 +12,6 @@ import (
 	"midProject/tools"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -64,13 +63,8 @@ func (s *Server) basicHandler() chi.Router {
 
 	r.Post("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
 
-		user, err := s.store.ByID(r.Context(), id)
+		user, err := s.store.ByID(r.Context(), idStr)
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
 			return
@@ -101,13 +95,8 @@ func (s *Server) basicHandler() chi.Router {
 	})
 	r.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
 
-		user, err := s.store.ByID(r.Context(), id)
+		user, err := s.store.ByID(r.Context(), idStr)
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
 			return
@@ -118,13 +107,8 @@ func (s *Server) basicHandler() chi.Router {
 
 	r.Get("/users/{id}/qr", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
 
-		user, err := s.store.ByID(r.Context(), id)
+		user, err := s.store.ByID(r.Context(), idStr)
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
 			return
@@ -148,13 +132,8 @@ func (s *Server) basicHandler() chi.Router {
 	})
 	r.Delete("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
 
-		s.store.Delete(r.Context(), id)
+		s.store.Delete(r.Context(), idStr)
 	})
 
 	return r
