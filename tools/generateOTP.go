@@ -82,8 +82,8 @@ func (info BasicInfo) GenOTPCLI() {
 }
 
 func GenOTPREST(user *models.User) string {
-	secret := []byte(user.Name)
-	uniqueQRlink := "./tmp/qr" + "_" + fmt.Sprint(user.ID) + ".png"
+	secret := []byte(user.ID.Hex())
+	uniqueQRlink := "./tmp/qr" + "_" + fmt.Sprint(user.Name) + ".png"
 	secretBase32 := base32.StdEncoding.EncodeToString(secret)
 
 	URL, err := url.Parse("otpauth://totp")
@@ -113,7 +113,7 @@ func GenOTPREST(user *models.User) string {
 }
 
 func GivePerm(user *models.User, token string) string {
-	secret := []byte(user.Name)
+	secret := []byte(user.ID.Hex())
 	secretBase32 := base32.StdEncoding.EncodeToString(secret)
 	otpc := &dgoogauth.OTPConfig{
 		Secret:      secretBase32,

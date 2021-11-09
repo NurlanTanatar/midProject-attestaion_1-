@@ -95,13 +95,16 @@ func (db *DB) filterTasks(ctx context.Context, filter interface{}) ([]*models.Us
 func (db *DB) ByID(ctx context.Context, id string) (*models.User, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	filter := bson.D{primitive.E{Key: "_id", Value: id}}
+	idObj, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, fmt.Errorf("conversion of id from string to ObjectID: %s", id)
+	}
+	filter := bson.D{primitive.E{Key: "_id", Value: idObj}}
 	u := &models.User{}
 	ok := db.collection.FindOne(ctx, filter).Decode(u)
 	if ok != nil {
 		return nil, fmt.Errorf("no user with id %s", id)
 	}
-
 	return u, nil
 }
 
@@ -111,7 +114,9 @@ func (db *DB) Update(ctx context.Context, user *models.User) error {
 
 	filter := bson.D{primitive.E{Key: "_id", Value: user.ID}}
 	update := bson.D{primitive.E{Key: "$set", Value: bson.D{
-		primitive.E{Key: "completed", Value: true},
+		primitive.E{Key: "name", Value: user.Name},
+		primitive.E{Key: "email", Value: user.Email},
+		primitive.E{Key: "imgpath", Value: user.ImgPath},
 	}}}
 
 	u := &models.User{}
@@ -122,7 +127,11 @@ func (db *DB) Update(ctx context.Context, user *models.User) error {
 func (db *DB) Delete(ctx context.Context, id string) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	filter := bson.D{primitive.E{Key: "_id", Value: id}}
+	idObj, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return fmt.Errorf("conversion of id from string to ObjectID: %s", id)
+	}
+	filter := bson.D{primitive.E{Key: "_id", Value: idObj}}
 
 	res, err := db.collection.DeleteOne(ctx, filter)
 	if err != nil {

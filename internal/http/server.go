@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Server struct {
@@ -57,6 +58,7 @@ func (s *Server) basicHandler() chi.Router {
 			fmt.Fprintf(w, "Unknown err: %v", err)
 			return
 		}
+		user.ID = primitive.NewObjectID()
 		user.ImgPath = tools.GenOTPREST(user)
 		s.store.Create(r.Context(), user)
 	})
@@ -123,12 +125,16 @@ func (s *Server) basicHandler() chi.Router {
 
 	r.Put("/users", func(w http.ResponseWriter, r *http.Request) {
 		user := new(models.User)
-		if err := json.NewDecoder(r.Body).Decode(user); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
 			return
 		}
 		user.ImgPath = tools.GenOTPREST(user)
-		s.store.Update(r.Context(), user)
+		err := s.store.Update(r.Context(), user)
+		if err != nil {
+			fmt.Fprintf(w, "err: %v", err)
+		}
+
 	})
 	r.Delete("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
