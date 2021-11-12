@@ -56,11 +56,13 @@ func (s *Server) basicHandler() chi.Router {
 		user := new(models.User)
 		if err := json.NewDecoder(r.Body).Decode(user); err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
 		user.ID = primitive.NewObjectID()
 		user.ImgPath = tools.GenOTPREST(user)
 		s.store.Create(r.Context(), user)
+		w.WriteHeader(http.StatusCreated)
 	})
 
 	r.Post("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +82,7 @@ func (s *Server) basicHandler() chi.Router {
 
 		if err := json.NewDecoder(r.Body).Decode(&token); err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
 		result := tools.GivePerm(user, token.Number)
@@ -90,6 +93,7 @@ func (s *Server) basicHandler() chi.Router {
 		users, err := s.store.All(r.Context())
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusConflict)
 			return
 		}
 
@@ -101,6 +105,7 @@ func (s *Server) basicHandler() chi.Router {
 		user, err := s.store.ByID(r.Context(), idStr)
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -113,12 +118,15 @@ func (s *Server) basicHandler() chi.Router {
 		user, err := s.store.ByID(r.Context(), idStr)
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "image/png")
 		fileBytes, err := ioutil.ReadFile(user.ImgPath)
 		if err != nil {
 			fmt.Fprintf(w, "err: %v", err)
+			w.WriteHeader(http.StatusNotFound)
+			return
 		}
 		w.Write(fileBytes)
 	})
@@ -127,19 +135,27 @@ func (s *Server) basicHandler() chi.Router {
 		user := new(models.User)
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		user.ImgPath = tools.GenOTPREST(user)
 		err := s.store.Update(r.Context(), user)
 		if err != nil {
 			fmt.Fprintf(w, "err: %v", err)
+			w.WriteHeader(http.StatusConflict)
+			return
 		}
-
+		w.WriteHeader(http.StatusOK)
 	})
 	r.Delete("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
 
-		s.store.Delete(r.Context(), idStr)
+		if err := s.store.Delete(r.Context(), idStr); err != nil {
+			fmt.Fprintf(w, "err: %v", err)
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	})
 
 	return r
