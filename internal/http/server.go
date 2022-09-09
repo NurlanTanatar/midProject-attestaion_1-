@@ -12,11 +12,11 @@ import (
 	"midProject/tools"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Server struct {
@@ -56,21 +56,19 @@ func (s *Server) basicHandler() chi.Router {
 		user := new(models.User)
 		if err := json.NewDecoder(r.Body).Decode(user); err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
+		user.ID = primitive.NewObjectID()
 		user.ImgPath = tools.GenOTPREST(user)
 		s.store.Create(r.Context(), user)
+		w.WriteHeader(http.StatusCreated)
 	})
 
 	r.Post("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
 
-		user, err := s.store.ByID(r.Context(), id)
+		user, err := s.store.ByID(r.Context(), idStr)
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
 			return
@@ -84,6 +82,7 @@ func (s *Server) basicHandler() chi.Router {
 
 		if err := json.NewDecoder(r.Body).Decode(&token); err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotAcceptable)
 			return
 		}
 		result := tools.GivePerm(user, token.Number)
@@ -94,6 +93,7 @@ func (s *Server) basicHandler() chi.Router {
 		users, err := s.store.All(r.Context())
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusConflict)
 			return
 		}
 
@@ -101,15 +101,11 @@ func (s *Server) basicHandler() chi.Router {
 	})
 	r.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
 
-		user, err := s.store.ByID(r.Context(), id)
+		user, err := s.store.ByID(r.Context(), idStr)
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -118,43 +114,48 @@ func (s *Server) basicHandler() chi.Router {
 
 	r.Get("/users/{id}/qr", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
 
-		user, err := s.store.ByID(r.Context(), id)
+		user, err := s.store.ByID(r.Context(), idStr)
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "image/png")
 		fileBytes, err := ioutil.ReadFile(user.ImgPath)
 		if err != nil {
 			fmt.Fprintf(w, "err: %v", err)
+			w.WriteHeader(http.StatusNotFound)
+			return
 		}
 		w.Write(fileBytes)
 	})
 
 	r.Put("/users", func(w http.ResponseWriter, r *http.Request) {
 		user := new(models.User)
-		if err := json.NewDecoder(r.Body).Decode(user); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		user.ImgPath = tools.GenOTPREST(user)
-		s.store.Update(r.Context(), user)
+		err := s.store.Update(r.Context(), user)
+		if err != nil {
+			fmt.Fprintf(w, "err: %v", err)
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	})
 	r.Delete("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
+
+		if err := s.store.Delete(r.Context(), idStr); err != nil {
+			fmt.Fprintf(w, "err: %v", err)
+			w.WriteHeader(http.StatusConflict)
 			return
 		}
-
-		s.store.Delete(r.Context(), id)
+		w.WriteHeader(http.StatusOK)
 	})
 
 	return r
